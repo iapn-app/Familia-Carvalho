@@ -96,8 +96,12 @@ export default function ResultPage() {
               <div className="text-3xl font-black text-red-400">{state.wrongAnswers}</div>
             </div>
             <div className="bg-white/5 p-4 rounded-3xl border border-white/5 flex flex-col items-center">
+              <div className="text-xs text-white/40 uppercase font-black tracking-widest mb-1">Seq. Máx</div>
+              <div className="text-3xl font-black text-orange-400">{state.maxStreak || 0}</div>
+            </div>
+            <div className="bg-white/5 p-4 rounded-3xl border border-white/5 flex flex-col items-center">
               <div className="text-xs text-white/40 uppercase font-black tracking-widest mb-1">Moedas</div>
-              <div className="text-3xl font-black text-yellow-400">+{state.coins}</div>
+              <div className="text-3xl font-black text-yellow-400">+{state.roundCoins || 0}</div>
             </div>
           </div>
 
@@ -131,7 +135,7 @@ export default function ResultPage() {
               onClick={handlePlayAgain}
               className="w-full py-5 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-300 text-blue-950 font-black text-xl shadow-xl hover:shadow-amber-400/20 transition-all"
             >
-              Jogar Novamente
+              Continuar jogando
             </motion.button>
             
             <button
@@ -145,7 +149,7 @@ export default function ResultPage() {
               onClick={handleHome}
               className="w-full py-2 text-white/40 hover:text-white/60 transition-colors text-sm font-bold uppercase tracking-widest"
             >
-              Voltar para o Início
+              Voltar para início
             </button>
           </div>
         </div>

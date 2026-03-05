@@ -2,6 +2,7 @@ export interface GameState {
   lives: number;
   coins: number;
   streak: number;
+  maxStreak: number;
   score: number;
   currentQuestionIndex: number;
   correctAnswers: number;
@@ -9,12 +10,14 @@ export interface GameState {
   isGameOver: boolean;
   seenQuestionIds: string[];
   skips_left: number;
+  roundCoins: number;
 }
 
 const INITIAL_STATE: GameState = {
   lives: 3,
   coins: 0,
   streak: 0,
+  maxStreak: 0,
   score: 0,
   currentQuestionIndex: 0,
   correctAnswers: 0,
@@ -22,6 +25,7 @@ const INITIAL_STATE: GameState = {
   isGameOver: false,
   seenQuestionIds: [],
   skips_left: 3,
+  roundCoins: 0,
 };
 
 const STORAGE_KEY = "fc_quiz_state";

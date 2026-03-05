@@ -304,9 +304,10 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     // In production, serve static files from dist
-    // app.use(express.static("dist"));
-    // app.get("*", (req, res) => res.sendFile("dist/index.html"));
-    console.log("Production mode not fully configured in this snippet.");
+    app.use(express.static("dist"));
+    app.get("*", (req, res) => {
+      res.sendFile("dist/index.html", { root: "." });
+    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {

@@ -19,7 +19,7 @@ export default function QuizPage() {
   const [showStreakBoost, setShowStreakBoost] = useState(false);
   const [showOutOfLivesModal, setShowOutOfLivesModal] = useState(false);
   const [hintMessage, setHintMessage] = useState<string | null>(null);
-  const [streakMessage, setStreakMessage] = useState<{ text: string; type: "success" | "break" } | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: "correct" | "wrong" | "streak" } | null>(null);
 
   const BIBLE_HINTS = [
     "Tudo posso naquele que me fortalece. - Filipenses 4:13",
@@ -32,6 +32,37 @@ export default function QuizPage() {
   ];
 
   
+  const CORRECT_MESSAGES = [
+    "Amém!",
+    "Isso aí!",
+    "Muito bem!",
+    "Exato!",
+    "Glória a Deus!",
+    "Resposta certa!",
+    "Você sabe muito!",
+    "Excelente!"
+  ];
+
+  const WRONG_MESSAGES = [
+    "Quase lá!",
+    "Não foi dessa vez.",
+    "Continue tentando!",
+    "Acontece!",
+    "Leia mais a Palavra!",
+    "Pense um pouco mais na próxima.",
+    "Não desanime!"
+  ];
+
+  const STREAK_MESSAGES = [
+    "Você está pegando fogo! 🔥",
+    "Imparável! 🚀",
+    "Conhecedor da Palavra! 📖",
+    "Que sabedoria! 🧠",
+    "Incrível! ⭐",
+    "Ninguém te segura! 🏃‍♂️",
+    "Mestre Bíblico! 👑"
+  ];
+
   // Timer State
   const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
   const [isTimeOut, setIsTimeOut] = useState(false);
@@ -50,60 +81,69 @@ export default function QuizPage() {
       }
 
       try {
-        const book = "Gênesis";
-        const stage = "Criação";
-        const level = "basic";
-
-        // 1. Check count of approved questions
-        const { count: approvedCount } = await supabase
-          .from("questions")
-          .select("*", { count: "exact", head: true })
-          .eq("book", book)
-          .eq("stage", stage)
-          .eq("level", level)
-          .eq("status", "approved");
+        const currentState = getGameState();
         
-        if ((approvedCount || 0) < REFILL_POLICY.MIN_APPROVED) {
-          fetch("/api/refill", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ book, stage, level, autoApprove: false }),
-          }).catch(err => console.error("Refill trigger failed", err));
+        // If we already have questions and haven't finished the round, don't fetch
+        if (currentState.currentQuestionIndex > 0 && currentState.currentQuestionIndex < 15 && questions.length > 0) {
+          setLoading(false);
+          return;
         }
 
-        // 2. Fetch questions excluding seen ones
-        let query = supabase
-          .from("questions")
-          .select("id,book,stage,level,difficulty,question,options,correct_answer,explanation,status")
-          .eq("status", "approved")
-          .eq("book", book)
-          .eq("stage", stage)
-          .eq("level", level);
+        const seenIds = currentState.seenQuestionIds || [];
 
-        const seenIds = state.seenQuestionIds || [];
-        if (seenIds.length > 0) {
-          query = query.not("id", "in", `(${seenIds.join(",")})`);
-        }
-
-        let { data, error } = await query.limit(5);
-
-        if (!data || data.length === 0) {
-          updateGameState({ seenQuestionIds: [] });
-          const retryQuery = supabase
+        // Fetch random questions by difficulty
+        const fetchByDifficulty = async (difficulty: string, limit: number) => {
+          let query = supabase
             .from("questions")
             .select("id,book,stage,level,difficulty,question,options,correct_answer,explanation,status")
             .eq("status", "approved")
-            .eq("book", book)
-            .eq("stage", stage)
-            .eq("level", level)
-            .limit(5);
-          const retry = await retryQuery;
-          data = retry.data;
-          error = retry.error;
+            .eq("difficulty", difficulty);
+
+          if (seenIds.length > 0) {
+            query = query.not("id", "in", `(${seenIds.join(",")})`);
+          }
+
+          const { data, error } = await query.limit(limit * 3);
+          if (error) throw error;
+          
+          const shuffled = (data || []).sort(() => 0.5 - Math.random());
+          return shuffled.slice(0, limit);
+        };
+
+        const [easy, medium, hard] = await Promise.all([
+          fetchByDifficulty("easy", 7),
+          fetchByDifficulty("medium", 5),
+          fetchByDifficulty("hard", 3)
+        ]);
+
+        let combined = [...easy, ...medium, ...hard];
+
+        if (combined.length < 15) {
+          updateGameState({ seenQuestionIds: [] });
+          
+          const [easyRetry, mediumRetry, hardRetry] = await Promise.all([
+            supabase.from("questions").select("*").eq("status", "approved").eq("difficulty", "easy").limit(21).then(res => (res.data || []).sort(() => 0.5 - Math.random()).slice(0, 7)),
+            supabase.from("questions").select("*").eq("status", "approved").eq("difficulty", "medium").limit(15).then(res => (res.data || []).sort(() => 0.5 - Math.random()).slice(0, 5)),
+            supabase.from("questions").select("*").eq("status", "approved").eq("difficulty", "hard").limit(9).then(res => (res.data || []).sort(() => 0.5 - Math.random()).slice(0, 3))
+          ]);
+          
+          combined = [...easyRetry, ...mediumRetry, ...hardRetry];
         }
 
-        if (error) throw error;
-        setQuestions(data || []);
+        const finalQuestions = combined.sort(() => 0.5 - Math.random());
+        setQuestions(finalQuestions);
+
+        if (currentState.currentQuestionIndex === 0 || currentState.currentQuestionIndex >= 15) {
+          updateGameState({ 
+            currentQuestionIndex: 0,
+            roundCoins: 0,
+            correctAnswers: 0,
+            wrongAnswers: 0,
+            maxStreak: 0,
+            streak: 0
+          });
+        }
+
       } catch (error: any) {
         console.error("Unexpected error:", error);
         setErrorMsg(error.message || "Erro desconhecido");
@@ -151,10 +191,9 @@ export default function QuizPage() {
     setIsTimeOut(true);
     setFeedback("wrong");
     
-    if (state.streak > 1) {
-      setStreakMessage({ text: "💔 Sequência quebrada", type: "break" });
-      setTimeout(() => setStreakMessage(null), 1000);
-    }
+    const randomWrong = WRONG_MESSAGES[Math.floor(Math.random() * WRONG_MESSAGES.length)];
+    setFeedbackMessage({ text: randomWrong, type: "wrong" });
+    setTimeout(() => setFeedbackMessage(null), 1000);
 
     const currentQuestion = questions[state.currentQuestionIndex];
     if (!currentQuestion) return;
@@ -174,56 +213,19 @@ export default function QuizPage() {
     }, 900);
   };
 
-  const fetchMoreQuestions = async () => {
-    try {
-      const currentState = getGameState();
-      const book = "Gênesis";
-      const stage = "Criação";
-      const level = "basic";
-
-      const fetchWithSeen = async (seenIds: string[]) => {
-        let query = supabase
-          .from("questions")
-          .select("id,book,stage,level,difficulty,question,options,correct_answer,explanation,status")
-          .eq("status", "approved")
-          .eq("book", book)
-          .eq("stage", stage)
-          .eq("level", level);
-
-        if (seenIds.length > 0) {
-          query = query.not("id", "in", `(${seenIds.join(",")})`);
-        }
-
-        return await query.limit(5);
-      };
-
-      let { data, error } = await fetchWithSeen(currentState.seenQuestionIds || []);
-
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        updateGameState({ seenQuestionIds: [] });
-        const retry = await fetchWithSeen([]);
-        data = retry.data;
-        if (retry.error) throw retry.error;
-      }
-
-      if (data && data.length > 0) {
-        setQuestions(prev => {
-          const newQuestions = data.filter(d => !prev.some(p => p.id === d.id));
-          return [...prev, ...newQuestions];
-        });
-      }
-    } catch (error: any) {
-      console.error("Error fetching more questions:", error);
-    }
-  };
-
   const advanceQuestion = (currentLives: number) => {
     if (currentLives <= 0) {
       setShowOutOfLivesModal(true);
     } else {
       const nextIndex = state.currentQuestionIndex + 1;
+      
+      if (nextIndex >= 15) {
+        // Round complete
+        updateGameState({ isGameOver: true });
+        navigate("/resultado");
+        return;
+      }
+
       const nextState = updateGameState({
         currentQuestionIndex: nextIndex,
       });
@@ -231,15 +233,23 @@ export default function QuizPage() {
       setSelectedOption(null);
       setFeedback(null);
       setIsTimeOut(false);
-      
-      if (nextIndex >= questions.length - 2) {
-        fetchMoreQuestions();
-      }
     }
   };
 
   const recoverLifeAndAdvance = (cost: number) => {
     const nextIndex = state.currentQuestionIndex + 1;
+    
+    if (nextIndex >= 15) {
+      // Round complete
+      updateGameState({
+        lives: 1,
+        coins: state.coins - cost,
+        isGameOver: true
+      });
+      navigate("/resultado");
+      return;
+    }
+
     const nextState = updateGameState({
       lives: 1,
       coins: state.coins - cost,
@@ -251,10 +261,6 @@ export default function QuizPage() {
     setIsTimeOut(false);
     setShowOutOfLivesModal(false);
     setHintMessage(null);
-    
-    if (nextIndex >= questions.length - 2) {
-      fetchMoreQuestions();
-    }
   };
 
   const handleBibleHint = () => {
@@ -358,8 +364,10 @@ export default function QuizPage() {
     // Update state
     let newLives = state.lives;
     let newStreak = state.streak;
+    let newMaxStreak = state.maxStreak || 0;
     let newScore = state.score;
     let newCoins = state.coins;
+    let newRoundCoins = state.roundCoins || 0;
     let newCorrect = state.correctAnswers;
     let newWrong = state.wrongAnswers;
     const currentSeenIds = state.seenQuestionIds || [];
@@ -368,34 +376,36 @@ export default function QuizPage() {
     if (isCorrect) {
       newScore += 100 + newStreak * 10;
       newCoins += 10;
+      newRoundCoins += 10;
       newStreak += 1;
       newCorrect += 1;
+      
+      if (newStreak > newMaxStreak) {
+        newMaxStreak = newStreak;
+      }
 
-      if (newStreak === 2) {
-        setStreakMessage({ text: "🔥 Boa!", type: "success" });
-      } else if (newStreak === 5) {
-        setStreakMessage({ text: "🔥🔥 Incrível!", type: "success" });
-      } else if (newStreak === 10) {
-        setStreakMessage({ text: "🔥🔥🔥 Conhecedor das Escrituras!", type: "success" });
-      } else if (newStreak > 1) {
-        setStreakMessage({ text: `🔥 Sequência: ${newStreak}`, type: "success" });
+      if (newStreak >= 3) {
+        const randomStreak = STREAK_MESSAGES[Math.floor(Math.random() * STREAK_MESSAGES.length)];
+        setFeedbackMessage({ text: randomStreak, type: "streak" });
+      } else {
+        const randomCorrect = CORRECT_MESSAGES[Math.floor(Math.random() * CORRECT_MESSAGES.length)];
+        setFeedbackMessage({ text: randomCorrect, type: "correct" });
       }
       
-      if (newStreak > 1) {
-        setTimeout(() => setStreakMessage(null), 1000);
-      }
+      setTimeout(() => setFeedbackMessage(null), 1000);
 
       // Streak Boost every 5
       if (newStreak > 0 && newStreak % 5 === 0) {
         newCoins += 30;
+        newRoundCoins += 30;
         setShowStreakBoost(true);
         setTimeout(() => setShowStreakBoost(false), 2000);
       }
     } else {
-      if (state.streak > 1) {
-        setStreakMessage({ text: "💔 Sequência quebrada", type: "break" });
-        setTimeout(() => setStreakMessage(null), 1000);
-      }
+      const randomWrong = WRONG_MESSAGES[Math.floor(Math.random() * WRONG_MESSAGES.length)];
+      setFeedbackMessage({ text: randomWrong, type: "wrong" });
+      setTimeout(() => setFeedbackMessage(null), 1000);
+
       newLives -= 1;
       newStreak = 0;
       newWrong += 1;
@@ -404,8 +414,10 @@ export default function QuizPage() {
     const newState = updateGameState({
       lives: newLives,
       streak: newStreak,
+      maxStreak: newMaxStreak,
       score: newScore,
       coins: newCoins,
+      roundCoins: newRoundCoins,
       correctAnswers: newCorrect,
       wrongAnswers: newWrong,
       seenQuestionIds: newSeenIds
@@ -471,9 +483,9 @@ export default function QuizPage() {
           className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 shadow-2xl mb-8 relative overflow-hidden"
         >
           <div className="absolute top-0 left-0 w-full h-1 bg-white/5" />
-          <h2 className="text-white/40 text-xs uppercase font-black tracking-[0.2em] mb-4 text-center">
-            Pergunta {state.currentQuestionIndex + 1}
-          </h2>
+          <div className="text-white/50 text-sm font-bold mb-6 text-center uppercase tracking-widest">
+            Pergunta {state.currentQuestionIndex + 1} de 15
+          </div>
           <p className="text-xl md:text-2xl text-center leading-relaxed font-bold">
             {currentQuestion.question}
           </p>
@@ -539,21 +551,23 @@ export default function QuizPage() {
         )}
       </AnimatePresence>
 
-      {/* Streak Message Overlay */}
+      {/* Feedback Message Overlay */}
       <AnimatePresence>
-        {streakMessage && (
+        {feedbackMessage && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-24 left-0 right-0 z-40 flex justify-center pointer-events-none"
+            initial={{ opacity: 0, y: -20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.9 }}
+            className="fixed top-32 left-0 right-0 z-40 flex justify-center pointer-events-none"
           >
-            <div className={`px-6 py-3 rounded-full font-black text-lg shadow-xl border ${
-              streakMessage.type === "success" 
-                ? "bg-orange-500 text-white border-orange-400 shadow-orange-500/30" 
+            <div className={`px-6 py-3 rounded-full font-black text-lg shadow-2xl border ${
+              feedbackMessage.type === "streak" 
+                ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white border-orange-400 shadow-orange-500/40" 
+                : feedbackMessage.type === "correct"
+                ? "bg-green-500 text-white border-green-400 shadow-green-500/30"
                 : "bg-red-500 text-white border-red-400 shadow-red-500/30"
             }`}>
-              {streakMessage.text}
+              {feedbackMessage.text}
             </div>
           </motion.div>
         )}
