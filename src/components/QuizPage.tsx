@@ -91,42 +91,47 @@ export default function QuizPage() {
 
         const seenIds = currentState.seenQuestionIds || [];
 
-        // Fetch random questions by difficulty
-        const fetchByDifficulty = async (difficulty: number, limit: number) => {
+        // Helper to fetch questions
+        const fetchQuestionsQuery = async (difficulty: number | null, limit: number, excludeIds: number[]) => {
           let query = supabase
             .from("questions")
             .select("id,book,stage,level,difficulty,question,options,correct_answer,explanation,status")
-            .eq("status", "approved")
-            .eq("difficulty", difficulty);
-
-          if (seenIds.length > 0) {
-            query = query.not("id", "in", `(${seenIds.join(",")})`);
-          }
-
-          const { data, error } = await query.limit(limit * 3);
+            .eq("status", "approved");
+          
+          if (difficulty !== null) query = query.eq("difficulty", difficulty);
+          if (excludeIds.length > 0) query = query.not("id", "in", `(${excludeIds.join(",")})`);
+          
+          const { data, error } = await query.limit(limit * 2);
           if (error) throw error;
           
-          const shuffled = (data || []).sort(() => 0.5 - Math.random());
-          return shuffled.slice(0, limit);
+          return (data || []).sort(() => 0.5 - Math.random()).slice(0, limit);
         };
 
+        // 1. Try fetching by difficulty
         const [easy, medium, hard] = await Promise.all([
-          fetchByDifficulty(1, 7),
-          fetchByDifficulty(2, 5),
-          fetchByDifficulty(3, 3)
+          fetchQuestionsQuery(1, 7, seenIds),
+          fetchQuestionsQuery(2, 5, seenIds),
+          fetchQuestionsQuery(3, 3, seenIds)
         ]);
 
         let combined = [...easy, ...medium, ...hard];
 
+        // 2. If < 15, fill with random
         if (combined.length < 15) {
+          const needed = 15 - combined.length;
+          const alreadyFetchedIds = [...seenIds, ...combined.map(q => q.id)];
+          const randomFill = await fetchQuestionsQuery(null, needed, alreadyFetchedIds);
+          combined = [...combined, ...randomFill];
+        }
+
+        // 3. Fallback: If still empty, reset seenIds and try once more
+        if (combined.length === 0 && seenIds.length > 0) {
           updateGameState({ seenQuestionIds: [] });
-          
           const [easyRetry, mediumRetry, hardRetry] = await Promise.all([
-            supabase.from("questions").select("*").eq("status", "approved").eq("difficulty", 1).limit(21).then(res => (res.data || []).sort(() => 0.5 - Math.random()).slice(0, 7)),
-            supabase.from("questions").select("*").eq("status", "approved").eq("difficulty", 2).limit(15).then(res => (res.data || []).sort(() => 0.5 - Math.random()).slice(0, 5)),
-            supabase.from("questions").select("*").eq("status", "approved").eq("difficulty", 3).limit(9).then(res => (res.data || []).sort(() => 0.5 - Math.random()).slice(0, 3))
+            fetchQuestionsQuery(1, 7, []),
+            fetchQuestionsQuery(2, 5, []),
+            fetchQuestionsQuery(3, 3, [])
           ]);
-          
           combined = [...easyRetry, ...mediumRetry, ...hardRetry];
         }
 
