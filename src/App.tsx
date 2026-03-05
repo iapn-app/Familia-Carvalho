@@ -10,6 +10,10 @@ import CreateProfilePage from "./components/CreateProfilePage";
 import HowToPlayPage from "./components/HowToPlayPage";
 import VerseOfTheDayPage from "./components/VerseOfTheDayPage";
 import AdminQuestionsPage from "./components/AdminQuestionsPage";
+import MultiplayerPage from "./components/MultiplayerPage";
+import LobbyPage from "./components/LobbyPage";
+import MultiplayerQuizPage from "./components/MultiplayerQuizPage";
+import MultiplayerResultPage from "./components/MultiplayerResultPage";
 import { isConfigured } from "./services/supabaseClient";
 
 export default function App() {
@@ -50,6 +54,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
         <Route path="/como-jogar" element={<HowToPlayPage />} />
         <Route path="/versiculo-do-dia" element={<VerseOfTheDayPage />} />
         <Route path="/admin/perguntas" element={<AdminQuestionsPage />} />
+        <Route path="/duelo" element={<MultiplayerPage />} />
+        <Route path="/lobby/:code" element={<LobbyPage />} />
+        <Route path="/duelo-quiz/:code" element={<MultiplayerQuizPage />} />
+        <Route path="/duelo-resultado/:code" element={<MultiplayerResultPage />} />
       </Routes>
     </BrowserRouter>
   );

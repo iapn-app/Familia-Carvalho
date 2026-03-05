@@ -3,15 +3,29 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { GameState, getGameState, resetGameState } from "../lib/storage";
+import { GameState, getGameState, resetGameState, updateGameState } from "../lib/storage";
+import { streakService } from "../services/streakService";
 
 export default function ResultPage() {
   const navigate = useNavigate();
   const [state, setState] = useState<GameState>(getGameState());
+  const [streakInfo, setStreakInfo] = useState<any>(null);
 
   useEffect(() => {
     if (!state.isGameOver) {
       navigate("/home");
+      return;
+    }
+
+    const userId = localStorage.getItem("fc_user_id");
+    if (userId) {
+      streakService.updateStreak(userId).then((info) => {
+        if (info) {
+          setStreakInfo(info);
+          // Update local state to show rewards if any
+          setState(getGameState());
+        }
+      });
     }
   }, [navigate]);
 
@@ -68,7 +82,7 @@ export default function ResultPage() {
             <div className="mt-2 text-2xl">🦁</div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mb-10">
+          <div className="grid grid-cols-2 gap-3 mb-6">
             <div className="bg-white/5 p-4 rounded-3xl border border-white/5 flex flex-col items-center">
               <div className="text-xs text-white/40 uppercase font-black tracking-widest mb-1">Pontos</div>
               <div className="text-3xl font-black text-white">{state.score}</div>
@@ -84,6 +98,29 @@ export default function ResultPage() {
             <div className="bg-white/5 p-4 rounded-3xl border border-white/5 flex flex-col items-center">
               <div className="text-xs text-white/40 uppercase font-black tracking-widest mb-1">Moedas</div>
               <div className="text-3xl font-black text-yellow-400">+{state.coins}</div>
+            </div>
+          </div>
+
+          {streakInfo?.rewards && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-amber-400/20 border border-amber-400/30 p-4 rounded-2xl mb-6 text-center"
+            >
+              <p className="text-amber-400 font-black uppercase tracking-widest text-[10px] mb-1">🎁 Recompensa de Sequência!</p>
+              <p className="text-white font-bold text-sm">
+                {streakInfo.rewards.lives ? "❤️ +1 Vida" : ""}
+                {streakInfo.rewards.coins ? "🪙 +10 Moedas" : ""}
+                {streakInfo.rewards.badge ? `🏅 Selo "${streakInfo.rewards.badge}"` : ""}
+              </p>
+            </motion.div>
+          )}
+
+          <div className="bg-amber-400/10 border border-amber-400/20 rounded-2xl p-3 mb-8 flex items-center justify-center gap-3">
+            <span className="text-2xl">🔥</span>
+            <div className="text-left">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400/60">Sequência Atual</p>
+              <p className="text-lg font-black text-amber-400">{streakInfo?.streak_days || state.streak} Dias</p>
             </div>
           </div>
 
