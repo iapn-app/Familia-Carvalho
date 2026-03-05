@@ -90,7 +90,7 @@ async function generateQuestionsLogic(book: string, stage: string, level: string
       "book": "${book}",
       "stage": "${stage}",
       "level": "${level}",
-      "difficulty": 2, // Inteiro entre 1 e 10
+      "difficulty": 2, // 1: easy, 2: medium, 3: hard
       "question": "Texto da pergunta em pt-BR",
       "options": ["Opção A", "Opção B", "Opção C", "Opção D"],
       "correct_answer": "Uma das opções exata",
@@ -102,7 +102,7 @@ async function generateQuestionsLogic(book: string, stage: string, level: string
     - correct_answer deve ser exatamente igual a uma das opções
     - texto em pt-BR
     - sem citar versículos longos; evitar copiar texto bíblico; perguntas baseadas em fatos/histórias
-    - difficulty deve variar se possível, mas manter média compatível com nível ${level}
+    - difficulty deve ser 1 (easy), 2 (medium) ou 3 (hard) compatível com nível ${level}
   `;
 
   const response = await ai.models.generateContent({

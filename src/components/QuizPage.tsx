@@ -92,7 +92,7 @@ export default function QuizPage() {
         const seenIds = currentState.seenQuestionIds || [];
 
         // Fetch random questions by difficulty
-        const fetchByDifficulty = async (difficulty: string, limit: number) => {
+        const fetchByDifficulty = async (difficulty: number, limit: number) => {
           let query = supabase
             .from("questions")
             .select("id,book,stage,level,difficulty,question,options,correct_answer,explanation,status")
@@ -111,9 +111,9 @@ export default function QuizPage() {
         };
 
         const [easy, medium, hard] = await Promise.all([
-          fetchByDifficulty("easy", 7),
-          fetchByDifficulty("medium", 5),
-          fetchByDifficulty("hard", 3)
+          fetchByDifficulty(1, 7),
+          fetchByDifficulty(2, 5),
+          fetchByDifficulty(3, 3)
         ]);
 
         let combined = [...easy, ...medium, ...hard];
@@ -122,9 +122,9 @@ export default function QuizPage() {
           updateGameState({ seenQuestionIds: [] });
           
           const [easyRetry, mediumRetry, hardRetry] = await Promise.all([
-            supabase.from("questions").select("*").eq("status", "approved").eq("difficulty", "easy").limit(21).then(res => (res.data || []).sort(() => 0.5 - Math.random()).slice(0, 7)),
-            supabase.from("questions").select("*").eq("status", "approved").eq("difficulty", "medium").limit(15).then(res => (res.data || []).sort(() => 0.5 - Math.random()).slice(0, 5)),
-            supabase.from("questions").select("*").eq("status", "approved").eq("difficulty", "hard").limit(9).then(res => (res.data || []).sort(() => 0.5 - Math.random()).slice(0, 3))
+            supabase.from("questions").select("*").eq("status", "approved").eq("difficulty", 1).limit(21).then(res => (res.data || []).sort(() => 0.5 - Math.random()).slice(0, 7)),
+            supabase.from("questions").select("*").eq("status", "approved").eq("difficulty", 2).limit(15).then(res => (res.data || []).sort(() => 0.5 - Math.random()).slice(0, 5)),
+            supabase.from("questions").select("*").eq("status", "approved").eq("difficulty", 3).limit(9).then(res => (res.data || []).sort(() => 0.5 - Math.random()).slice(0, 3))
           ]);
           
           combined = [...easyRetry, ...mediumRetry, ...hardRetry];

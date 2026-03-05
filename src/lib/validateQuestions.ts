@@ -14,8 +14,7 @@ export function validateQuestion(q: any): { valid: boolean; error?: string } {
   if (!q.stage || typeof q.stage !== 'string') return { valid: false, error: 'Missing or invalid stage' };
   if (!q.level || typeof q.level !== 'string') return { valid: false, error: 'Missing or invalid level' };
   
-  if (typeof q.difficulty !== 'number') return { valid: false, error: 'Missing or invalid difficulty' };
-  if (q.difficulty < 1 || q.difficulty > 10) return { valid: false, error: 'Difficulty must be between 1 and 10' };
+  if (typeof q.difficulty !== 'number' || q.difficulty < 1 || q.difficulty > 3) return { valid: false, error: 'Difficulty must be 1, 2, or 3' };
 
   if (!q.question || typeof q.question !== 'string') return { valid: false, error: 'Missing or invalid question text' };
   
