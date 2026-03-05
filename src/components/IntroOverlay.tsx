@@ -49,12 +49,15 @@ export default function IntroOverlay({ onFinish }: IntroOverlayProps) {
   };
 
   const handleFinish = () => {
-    const count = parseInt(localStorage.getItem("intro_seen_count") || "0");
-    localStorage.setItem("intro_seen_count", (count + 1).toString());
     onFinish();
   };
 
   const handleSkip = () => {
+    handleFinish();
+  };
+
+  const handleDismiss = () => {
+    localStorage.setItem("intro_dismissed", "true");
     handleFinish();
   };
 
@@ -107,6 +110,16 @@ export default function IntroOverlay({ onFinish }: IntroOverlayProps) {
             >
               {step.buttonText || "Continuar"}
             </motion.button>
+
+            {/* Don't Show Again Button (only on last step) */}
+            {currentStep === INTRO_STEPS.length - 1 && (
+              <button
+                onClick={handleDismiss}
+                className="mt-4 text-white/40 hover:text-white/80 transition-colors text-xs font-bold uppercase tracking-widest"
+              >
+                Não mostrar novamente
+              </button>
+            )}
           </motion.div>
         </AnimatePresence>
       </div>

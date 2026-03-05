@@ -30,10 +30,31 @@ export default function HomePage() {
   const [showIntro, setShowIntro] = useState(false);
 
   useEffect(() => {
-    const count = parseInt(localStorage.getItem("intro_seen_count") || "0");
-    if (count < 5) {
-      setShowIntro(true);
-    }
+    const checkIntro = () => {
+      // 1. Check if dismissed
+      const dismissed = localStorage.getItem("intro_dismissed") === "true";
+      if (dismissed) return;
+
+      // 2. Check first seen timestamp
+      const now = Date.now();
+      const firstSeenStr = localStorage.getItem("intro_first_seen_at");
+      
+      if (!firstSeenStr) {
+        // First time ever seeing it
+        localStorage.setItem("intro_first_seen_at", now.toString());
+        setShowIntro(true);
+      } else {
+        // Check if 48h have passed
+        const firstSeen = parseInt(firstSeenStr);
+        const hours48 = 172800000; // 48 hours in ms
+        
+        if (now - firstSeen < hours48) {
+          setShowIntro(true);
+        }
+      }
+    };
+    
+    checkIntro();
   }, []);
 
   useEffect(() => {

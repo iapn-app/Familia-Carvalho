@@ -92,7 +92,7 @@ export default function QuizPage() {
         const seenIds = currentState.seenQuestionIds || [];
 
         // Helper to fetch questions
-        const fetchQuestionsQuery = async (difficulty: number | null, limit: number, excludeIds: number[]) => {
+        const fetchQuestionsQuery = async (difficulty: number | null, limit: number, excludeIds: any[]) => {
           let query = supabase
             .from("questions")
             .select("id,book,stage,level,difficulty,question,options,correct_answer,explanation,status")
