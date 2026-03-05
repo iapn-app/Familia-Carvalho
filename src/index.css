@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Rubik:wght@400;600;800;900&family=Inter:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-rubik: "Rubik", sans-serif;
+  --font-manrope: "Manrope", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-[#0B1F4B] text-white;
+  }
+}
+
+/* Premium Splash Styles */
+.cinematic-bg {
+  background: radial-gradient(circle at 50% 50%, #0D2A4D 0%, #071A2F 100%);
+}
+
+/* Starfield Parallax */
+.stars-container {
+  @apply absolute inset-0 pointer-events-none overflow-hidden;
+}
+
+.star {
+  @apply absolute rounded-full bg-white;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+}
+
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 0.8; transform: scale(1.1); }
+}
+
+@keyframes parallax-drift {
+  from { transform: translateY(0); }
+  to { transform: translateY(-100vh); }
+}
+
+/* Gold Particles */
+.particle-gold {
+  @apply absolute rounded-full bg-[#FFD700];
+  filter: blur(1px);
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+  animation: float-up-premium var(--duration) linear infinite;
+}
+
+@keyframes float-up-premium {
+  0% { transform: translateY(110vh) scale(0.5); opacity: 0; }
+  20% { opacity: 0.6; }
+  80% { opacity: 0.6; }
+  100% { transform: translateY(-10vh) scale(1.2); opacity: 0; }
+}
+
+/* Lion Badge Glow */
+.lion-badge-glow {
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.15) 0%, transparent 70%);
+}
+
+/* Text Glow */
+.text-glow-gold {
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+/* Shine Effect (Light Sweep) */
+.shine-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine-effect::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  transform: skewX(-25deg);
+  animation: shine-sweep 2.5s ease-in-out forwards;
+  animation-delay: 1.6s;
+}
+
+@keyframes shine-sweep {
+  0% { left: -150%; }
+  100% { left: 150%; }
+}
+
+/* Subtle Pulsing Glow */
+.aura-glow {
+  @apply absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full;
+  background: radial-gradient(circle, rgba(255, 216, 107, 0.1) 0%, transparent 70%);
+  animation: aura-pulse 4s ease-in-out infinite;
+}
+
+@keyframes aura-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.3; }
+  50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.6; }
+}
+
+/* Splash Transitions */
+.splash-leave {
+  animation: fade-out 1s ease-out forwards;
+}
+
+@keyframes fade-out {
+  to { opacity: 0; }
+}

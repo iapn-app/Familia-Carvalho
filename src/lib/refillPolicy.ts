@@ -1,0 +1,6 @@
+export const REFILL_POLICY = {
+  MIN_APPROVED: 40,
+  BUFFER: 20,
+  MAX_PER_RUN: 80,
+  COOLDOWN_MINUTES: 30,
+};
