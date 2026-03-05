@@ -74,7 +74,7 @@ export default function MultiplayerResultPage() {
 
   const handleShareChallenge = () => {
     if (!me) return;
-    const correctAnswers = me.score / 10;
+    const correctAnswers = me.score;
     const text = `⚔️ Acabei de jogar um Duelo Bíblico no app Família Carvalho.\n\nFiz ${correctAnswers} acertos.\n\nQuem tem coragem de me desafiar?\n\nfamilia-carvalho.vercel.app`;
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(whatsappUrl, "_blank");
@@ -169,6 +169,15 @@ export default function MultiplayerResultPage() {
             className="w-full py-5 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-300 text-blue-950 font-extrabold text-xl shadow-lg transition-all"
           >
             Desafiar outra pessoa
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleShareChallenge}
+            className="w-full py-4 rounded-2xl bg-green-600 text-white font-bold text-lg shadow-lg hover:bg-green-700 transition-all flex items-center justify-center gap-2"
+          >
+            <span>💬</span> Compartilhar desafio
           </motion.button>
 
           <button

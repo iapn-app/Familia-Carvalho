@@ -139,18 +139,16 @@ export default function LobbyPage() {
   };
 
   const handleShare = async () => {
-    const shareData = {
-      title: "Duelo Bíblico - Família Carvalho",
-      text: `Ei! Vamos duelar no Quiz Bíblico? Use o código: ${code}`,
-      url: window.location.origin,
-    };
-
     try {
       await navigator.clipboard.writeText(code || "");
       alert("Código copiado para a área de transferência!");
       
       if (navigator.share) {
-        await navigator.share(shareData);
+        await navigator.share({
+          title: "Duelo Bíblico - Família Carvalho",
+          text: `Ei! Vamos duelar no Quiz Bíblico? Use o código: ${code}`,
+          url: window.location.origin,
+        });
       }
     } catch (err) {
       console.error("Error sharing:", err);
@@ -191,7 +189,7 @@ export default function LobbyPage() {
           
           <div className="flex flex-col items-center gap-2">
             <p className="text-sm text-white/60 font-bold italic flex items-center gap-1">
-              Aguardando adversário entrar
+              Aguardando adversário
               <motion.span
                 animate={{ opacity: [0, 1, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity, times: [0, 0.5, 1] }}
