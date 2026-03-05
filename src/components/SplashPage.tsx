@@ -117,8 +117,8 @@ export default function Splash() {
     // Navigate after 5 seconds
     const exitTimer = setTimeout(() => setIsExiting(true), 4600);
     const navTimer = setTimeout(() => {
-      const introSeen = localStorage.getItem("intro_seen") === "true";
-      navigate(introSeen ? "/home" : "/intro");
+      const count = parseInt(localStorage.getItem("intro_seen_count") || "0");
+      navigate(count >= 5 ? "/home" : "/intro");
     }, 5000);
 
     return () => {

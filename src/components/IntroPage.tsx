@@ -38,8 +38,9 @@ export default function IntroPage() {
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
-    // If already seen, redirect to home
-    if (localStorage.getItem("intro_seen") === "true") {
+    // If already seen 5 times, redirect to home
+    const count = parseInt(localStorage.getItem("intro_seen_count") || "0");
+    if (count >= 5) {
       navigate("/home");
     }
   }, [navigate]);
@@ -53,7 +54,8 @@ export default function IntroPage() {
   };
 
   const handleFinish = () => {
-    localStorage.setItem("intro_seen", "true");
+    const count = parseInt(localStorage.getItem("intro_seen_count") || "0");
+    localStorage.setItem("intro_seen_count", (count + 1).toString());
     navigate("/home");
   };
 

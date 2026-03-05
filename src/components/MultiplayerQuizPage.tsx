@@ -55,7 +55,7 @@ export default function MultiplayerQuizPage() {
         const { data: roomData, error: roomError } = await supabase
           .from("quiz_rooms")
           .select("*")
-          .eq("code", code)
+          .eq("room_code", code)
           .single();
 
         if (roomError || !roomData) throw new Error("Sala não encontrada");
@@ -197,13 +197,13 @@ export default function MultiplayerQuizPage() {
       const currentPlayer = players.find((p) => p.user_id === userId);
       if (!currentPlayer) return;
 
-      // 1. Record answer
+      // 1. Record answer with requested fields
       await supabase.from("room_answers").insert([{
         room_id: room.id,
-        user_id: userId,
+        player_name: currentPlayer.player_name,
         question_id: currentQuestion.id,
         is_correct: correct,
-        selected_option: option,
+        answer: option,
         answered_at: new Date().toISOString()
       }]);
 
@@ -211,7 +211,7 @@ export default function MultiplayerQuizPage() {
       if (correct) {
         await supabase
           .from("room_players")
-          .update({ score: currentPlayer.score + 10 })
+          .update({ score: currentPlayer.score + 1 })
           .eq("id", currentPlayer.id);
       }
     } catch (err) {
@@ -284,7 +284,7 @@ export default function MultiplayerQuizPage() {
               <p className="font-bold text-sm truncate max-w-[80px]">{me?.player_name}</p>
             </div>
           </div>
-          <span className="text-2xl font-black text-amber-400">{me?.score || 0}</span>
+          <span className="text-3xl font-black text-amber-400">{me?.score || 0}</span>
         </div>
         
         <div className={`bg-white/5 border rounded-2xl p-4 flex items-center justify-between transition-all ${
@@ -292,26 +292,15 @@ export default function MultiplayerQuizPage() {
         }`}>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-xs text-white font-black">
-              {opponent?.player_name.charAt(0).toUpperCase()}
+              {opponent?.player_name?.charAt(0).toUpperCase() || "?"}
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Oponente</p>
-              <p className="font-bold text-sm truncate max-w-[80px]">{opponent?.player_name}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Adversário</p>
+              <p className="font-bold text-sm truncate max-w-[80px]">{opponent?.player_name || "Aguardando..."}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <AnimatePresence>
-              {opponentAnswered && (
-                <motion.div 
-                  initial={{ scale: 0, opacity: 0 }} 
-                  animate={{ scale: 1, opacity: 1 }} 
-                  className="bg-blue-500 text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter"
-                >
-                  OK
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <span className="text-2xl font-black text-white/60">{opponent?.score || 0}</span>
+            <span className="text-3xl font-black text-white/60">{opponent?.score || 0}</span>
           </div>
         </div>
       </div>

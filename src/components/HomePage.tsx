@@ -25,6 +25,7 @@ export default function HomePage() {
   const [displayName, setDisplayName] = useState(localStorage.getItem("display_name") || "");
   const [loadingVerse, setLoadingVerse] = useState(true);
   const [supabaseStreak, setSupabaseStreak] = useState<number | null>(null);
+  const [isGameStarting, setIsGameStarting] = useState(false);
 
   useEffect(() => {
     // Device ID generation
@@ -88,6 +89,7 @@ export default function HomePage() {
   }, []);
 
   const handleStartGame = () => {
+    setIsGameStarting(true);
     const name = localStorage.getItem("display_name");
     if (!name || name.trim() === "") {
       setShowLoginModal(true);
@@ -193,10 +195,10 @@ export default function HomePage() {
       {/* Main Actions */}
       <div className="w-full max-w-xs space-y-4">
         <motion.button
-          whileHover={{ scale: 1.02 }}
+          whileHover={{ scale: 1.05, filter: "brightness(1.1)" }}
           whileTap={{ scale: 0.98 }}
           onClick={handleStartGame}
-          className="w-full py-5 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-300 text-blue-950 font-extrabold text-xl shadow-[0_10px_20px_rgba(251,191,36,0.3)] hover:shadow-[0_15px_30px_rgba(251,191,36,0.4)] transition-all"
+          className={`w-full py-5 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-300 text-blue-950 font-extrabold text-xl shadow-[0_10px_20px_rgba(251,191,36,0.3)] transition-all ${!isGameStarting ? 'animate-pulse-glow' : ''}`}
         >
           Começar a Jogar
         </motion.button>

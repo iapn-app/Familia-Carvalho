@@ -30,7 +30,7 @@ export default function LobbyPage() {
         const { data: roomData, error: roomError } = await supabase
           .from("quiz_rooms")
           .select("*")
-          .eq("code", code)
+          .eq("room_code", code)
           .single();
 
         if (roomError || !roomData) throw new Error("Sala não encontrada");
@@ -146,11 +146,11 @@ export default function LobbyPage() {
     };
 
     try {
+      await navigator.clipboard.writeText(code || "");
+      alert("Código copiado para a área de transferência!");
+      
       if (navigator.share) {
         await navigator.share(shareData);
-      } else {
-        await navigator.clipboard.writeText(code || "");
-        alert("Código copiado para a área de transferência!");
       }
     } catch (err) {
       console.error("Error sharing:", err);
@@ -175,20 +175,37 @@ export default function LobbyPage() {
         
         <div className="mt-8 bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-8 w-full text-center space-y-6 shadow-2xl">
           <div className="space-y-2">
-            <p className="text-xs text-white/50 uppercase font-black tracking-[0.2em]">Código do Duelo</p>
+            <p className="text-xs text-white/50 uppercase font-black tracking-[0.2em]">Código da Sala</p>
             <div className="text-6xl font-black text-white tracking-[0.3em] bg-white/5 py-6 rounded-2xl border border-white/5">
               {code}
             </div>
+            <p className="text-xs text-white/40 mt-2">Compartilhe este código com quem deseja desafiar.</p>
           </div>
           
           <button
             onClick={handleShare}
-            className="w-full py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-bold text-sm hover:bg-white/20 transition-all flex items-center justify-center gap-2"
+            className="w-full py-4 rounded-2xl bg-amber-400 text-blue-950 font-black text-sm hover:bg-amber-300 transition-all flex items-center justify-center gap-2"
           >
-            <span>🔗</span> Compartilhar código
+            <span>📋</span> Copiar código
           </button>
           
-          <p className="text-sm text-white/40 italic">Aguardando oponente para iniciar automaticamente...</p>
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-sm text-white/60 font-bold italic flex items-center gap-1">
+              Aguardando adversário entrar
+              <motion.span
+                animate={{ opacity: [0, 1, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity, times: [0, 0.5, 1] }}
+              >.</motion.span>
+              <motion.span
+                animate={{ opacity: [0, 1, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity, times: [0, 0.5, 1], delay: 0.3 }}
+              >.</motion.span>
+              <motion.span
+                animate={{ opacity: [0, 1, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity, times: [0, 0.5, 1], delay: 0.6 }}
+              >.</motion.span>
+            </p>
+          </div>
         </div>
 
         <div className="mt-10 w-full space-y-4">

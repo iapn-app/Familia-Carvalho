@@ -56,6 +56,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
         <Route path="/admin/perguntas" element={<AdminQuestionsPage />} />
         <Route path="/duelo" element={<MultiplayerPage />} />
         <Route path="/lobby/:code" element={<LobbyPage />} />
+        <Route path="/duelo/sala/:code" element={<LobbyPage />} />
         <Route path="/duelo-quiz/:code" element={<MultiplayerQuizPage />} />
         <Route path="/duelo-resultado/:code" element={<MultiplayerResultPage />} />
       </Routes>

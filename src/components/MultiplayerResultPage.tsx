@@ -35,7 +35,7 @@ export default function MultiplayerResultPage() {
         const { data: roomData, error: roomError } = await supabase
           .from("quiz_rooms")
           .select("id")
-          .eq("code", code)
+          .eq("room_code", code)
           .single();
 
         if (roomError || !roomData) throw new Error("Sala não encontrada");
@@ -93,9 +93,11 @@ export default function MultiplayerResultPage() {
           <h1 className="text-3xl font-black text-amber-400 uppercase tracking-widest mb-2">
             🏆 Resultado do Duelo Bíblico
           </h1>
-          <p className="text-white/60 font-bold italic">
-            {isDraw ? "Que partida equilibrada!" : isWinner ? "Parabéns, você venceu o duelo!" : "Não foi dessa vez, continue estudando!"}
-          </p>
+          {isDraw && (
+            <p className="text-2xl font-black text-white mt-4 flex items-center justify-center gap-2">
+              <span>🤝</span> Empate
+            </p>
+          )}
         </motion.div>
 
         {streakInfo?.rewards && (
@@ -148,7 +150,7 @@ export default function MultiplayerResultPage() {
                     )}
                   </p>
                   <p className="text-xs text-white/40 uppercase font-black tracking-widest">
-                    {player.score / 10} acertos
+                    {player.score} acertos
                   </p>
                 </div>
               </div>
@@ -169,20 +171,11 @@ export default function MultiplayerResultPage() {
             Desafiar outra pessoa
           </motion.button>
 
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleShareChallenge}
-            className="w-full py-4 rounded-2xl bg-green-600 text-white font-bold text-lg shadow-lg hover:bg-green-700 transition-all flex items-center justify-center gap-2"
-          >
-            <span>💬</span> Compartilhar desafio
-          </motion.button>
-          
           <button
             onClick={() => navigate("/home")}
             className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold text-lg hover:bg-white/10 transition-all"
           >
-            Voltar para início
+            Voltar ao início
           </button>
         </div>
       </div>

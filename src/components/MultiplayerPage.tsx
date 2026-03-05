@@ -16,7 +16,7 @@ export default function MultiplayerPage() {
 
   useEffect(() => {
     let id = localStorage.getItem("fc_user_id");
-    let name = localStorage.getItem("fc_user_name") || "";
+    let name = localStorage.getItem("display_name") || "";
     if (!id) {
       id = uuidv4();
       localStorage.setItem("fc_user_id", id);
@@ -30,20 +30,20 @@ export default function MultiplayerPage() {
   };
 
   const handleCreateRoom = async () => {
-    if (!userName.trim()) {
-      setError("Por favor, digite seu nome primeiro.");
-      return;
-    }
+    const displayName = localStorage.getItem("display_name") || "Visitante";
     setLoading(true);
     setError("");
     try {
-      const code = generateCode();
-      localStorage.setItem("fc_user_name", userName);
+      const roomCode = Math.floor(100000 + Math.random() * 900000).toString();
 
       // 1. Create the room
       const { data: room, error: roomError } = await supabase
         .from("quiz_rooms")
-        .insert([{ code, status: "waiting" }])
+        .insert([{ 
+          room_code: roomCode, 
+          host_name: displayName,
+          status: "waiting" 
+        }])
         .select()
         .single();
 
@@ -55,13 +55,13 @@ export default function MultiplayerPage() {
         .insert([{ 
           room_id: room.id, 
           user_id: userId, 
-          player_name: userName,
+          player_name: displayName,
           is_host: true
         }]);
 
       if (playerError) throw playerError;
 
-      navigate(`/lobby/${code}`);
+      navigate(`/duelo/sala/${roomCode}`);
     } catch (err: any) {
       console.error(err);
       setError("Erro ao criar duelo. Tente novamente.");
@@ -71,10 +71,7 @@ export default function MultiplayerPage() {
   };
 
   const handleJoinRoom = async () => {
-    if (!userName.trim()) {
-      setError("Por favor, digite seu nome primeiro.");
-      return;
-    }
+    const displayName = localStorage.getItem("display_name") || "Visitante";
     if (roomCode.length !== 6) {
       setError("O código deve ter 6 números.");
       return;
@@ -82,40 +79,28 @@ export default function MultiplayerPage() {
     setLoading(true);
     setError("");
     try {
-      localStorage.setItem("fc_user_name", userName);
-
       // 1. Find the room
       const { data: room, error: roomError } = await supabase
         .from("quiz_rooms")
         .select("*")
-        .eq("code", roomCode)
+        .eq("room_code", roomCode)
         .single();
 
       if (roomError || !room) throw new Error("Duelo não encontrado.");
-      if (room.status !== "waiting") throw new Error("Este duelo já iniciou ou foi finalizado.");
-
-      // 2. Check players count
-      const { data: players, error: playersError } = await supabase
-        .from("room_players")
-        .select("id")
-        .eq("room_id", room.id);
-
-      if (playersError) throw playersError;
-      if (players && players.length >= 2) throw new Error("Duelo já tem 2 jogadores.");
-
-      // 3. Join the room
+      
+      // 2. Join the room
       const { error: joinError } = await supabase
         .from("room_players")
         .insert([{ 
           room_id: room.id, 
           user_id: userId, 
-          player_name: userName,
+          player_name: displayName,
           is_host: false
         }]);
 
       if (joinError) throw joinError;
 
-      navigate(`/lobby/${roomCode}`);
+      navigate(`/duelo/sala/${roomCode}`);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Erro ao entrar no duelo.");
@@ -139,15 +124,17 @@ export default function MultiplayerPage() {
           <h2 className="text-lg font-bold text-amber-400 flex items-center gap-2">
             <span>👤</span> Seu Perfil
           </h2>
-          <div>
-            <label className="text-xs text-white/50 uppercase font-bold mb-1 block">Como quer ser chamado?</label>
-            <input
-              type="text"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              placeholder="Digite seu nome"
-              className="w-full py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-amber-400 transition-all"
-            />
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-white/50 uppercase font-bold">Nome de exibição</p>
+              <p className="text-lg font-black text-white">{userName || "Visitante"}</p>
+            </div>
+            <button 
+              onClick={() => navigate("/home")}
+              className="text-[10px] font-black uppercase tracking-widest text-amber-400/60 hover:text-amber-400 transition-colors"
+            >
+              Alterar na Home
+            </button>
           </div>
         </div>
 
