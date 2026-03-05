@@ -72,7 +72,7 @@ export default function ResultPage() {
           </motion.div>
 
           <h1 className="text-3xl font-black text-amber-400 mb-2 uppercase tracking-tight">
-            {state.lives > 0 ? "Rodada Concluída!" : "Fim de Jogo"}
+            Fim da Rodada
           </h1>
           
           <div className="bg-white/5 rounded-2xl p-4 mb-8 border border-white/5">

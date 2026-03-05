@@ -140,18 +140,57 @@ export default function QuizPage() {
     }, 900);
   };
 
+  const fetchMoreQuestions = async () => {
+    try {
+      const currentState = getGameState();
+      const book = "Gênesis";
+      const stage = "Criação";
+      const level = "basic";
+
+      let query = supabase
+        .from("questions")
+        .select("id,book,stage,level,difficulty,question,options,correct_answer,explanation,status")
+        .eq("status", "approved")
+        .eq("book", book)
+        .eq("stage", stage)
+        .eq("level", level);
+
+      const seenIds = currentState.seenQuestionIds || [];
+      if (seenIds.length > 0) {
+        query = query.not("id", "in", `(${seenIds.join(",")})`);
+      }
+
+      const { data, error } = await query.limit(5);
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setQuestions(prev => {
+          const newQuestions = data.filter(d => !prev.some(p => p.id === d.id));
+          return [...prev, ...newQuestions];
+        });
+      }
+    } catch (error: any) {
+      console.error("Error fetching more questions:", error);
+    }
+  };
+
   const advanceQuestion = (currentLives: number) => {
-    if (currentLives <= 0 || state.currentQuestionIndex >= questions.length - 1) {
+    if (currentLives <= 0) {
       updateGameState({ isGameOver: true });
       navigate("/resultado");
     } else {
+      const nextIndex = state.currentQuestionIndex + 1;
       const nextState = updateGameState({
-        currentQuestionIndex: state.currentQuestionIndex + 1,
+        currentQuestionIndex: nextIndex,
       });
       setState(nextState);
       setSelectedOption(null);
       setFeedback(null);
       setIsTimeOut(false);
+      
+      if (nextIndex >= questions.length - 2) {
+        fetchMoreQuestions();
+      }
     }
   };
 
@@ -329,15 +368,10 @@ export default function QuizPage() {
 
       {/* Progress & Timer */}
       <div className="flex flex-col gap-2 mb-10">
-        <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${((state.currentQuestionIndex + 1) / questions.length) * 100}%` }}
-            className="h-full bg-gradient-to-r from-amber-400 to-yellow-300"
-          />
-        </div>
         <div className="flex justify-between items-center px-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Progresso</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-white/30">
+            Pergunta {state.currentQuestionIndex + 1}
+          </span>
           <div className={`flex items-center gap-1.5 ${timeLeft <= 5 ? "text-red-400 animate-pulse" : "text-amber-400"}`}>
             <span className="text-xs font-black">⏱️ {timeLeft}s</span>
           </div>
@@ -353,9 +387,6 @@ export default function QuizPage() {
           className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 shadow-2xl mb-8 relative overflow-hidden"
         >
           <div className="absolute top-0 left-0 w-full h-1 bg-white/5" />
-          <h2 className="text-white/40 text-xs uppercase font-black tracking-[0.2em] mb-4 text-center">
-            Pergunta {state.currentQuestionIndex + 1} de {questions.length}
-          </h2>
           <p className="text-xl md:text-2xl text-center leading-relaxed font-bold">
             {currentQuestion.question}
           </p>
