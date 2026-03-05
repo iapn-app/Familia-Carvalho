@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import SplashPage from "./components/SplashPage";
-import IntroPage from "./components/IntroPage";
 import LoginPage from "./components/LoginPage";
 import HomePage from "./components/HomePage";
 import QuizPage from "./components/QuizPage";
@@ -44,7 +43,6 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<SplashPage />} />
-        <Route path="/intro" element={<IntroPage />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/quiz" element={<QuizPage />} />

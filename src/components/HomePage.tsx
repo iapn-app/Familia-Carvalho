@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { v4 as uuidv4 } from "uuid";
 import { getGameState } from "../lib/storage";
 import MascotBadge from "./MascotBadge";
+import IntroOverlay from "./IntroOverlay";
 import { supabase } from "../services/supabaseClient";
 import { streakService } from "../services/streakService";
 
@@ -26,6 +27,14 @@ export default function HomePage() {
   const [loadingVerse, setLoadingVerse] = useState(true);
   const [supabaseStreak, setSupabaseStreak] = useState<number | null>(null);
   const [isGameStarting, setIsGameStarting] = useState(false);
+  const [showIntro, setShowIntro] = useState(false);
+
+  useEffect(() => {
+    const count = parseInt(localStorage.getItem("intro_seen_count") || "0");
+    if (count < 5) {
+      setShowIntro(true);
+    }
+  }, []);
 
   useEffect(() => {
     // Device ID generation
@@ -122,6 +131,8 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-[#0B1F4B] text-white p-6 flex flex-col items-center font-manrope overflow-x-hidden">
+      {showIntro && <IntroOverlay onFinish={() => setShowIntro(false)} />}
+      
       {/* User Greeting */}
       {displayName && (
         <motion.div 

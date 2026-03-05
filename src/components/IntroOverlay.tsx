@@ -33,17 +33,12 @@ const INTRO_STEPS: IntroStep[] = [
   },
 ];
 
-export default function IntroPage() {
-  const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(0);
+interface IntroOverlayProps {
+  onFinish: () => void;
+}
 
-  useEffect(() => {
-    // If already seen 5 times, redirect to home
-    const count = parseInt(localStorage.getItem("intro_seen_count") || "0");
-    if (count >= 5) {
-      navigate("/home");
-    }
-  }, [navigate]);
+export default function IntroOverlay({ onFinish }: IntroOverlayProps) {
+  const [currentStep, setCurrentStep] = useState(0);
 
   const handleNext = () => {
     if (currentStep < INTRO_STEPS.length - 1) {
@@ -56,7 +51,7 @@ export default function IntroPage() {
   const handleFinish = () => {
     const count = parseInt(localStorage.getItem("intro_seen_count") || "0");
     localStorage.setItem("intro_seen_count", (count + 1).toString());
-    navigate("/home");
+    onFinish();
   };
 
   const handleSkip = () => {
@@ -66,7 +61,7 @@ export default function IntroPage() {
   const step = INTRO_STEPS[currentStep];
 
   return (
-    <main className="min-h-screen bg-[#0B1F4B] text-white flex flex-col items-center justify-center p-6 font-manrope relative overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-[#0B1F4B] text-white flex flex-col items-center justify-center p-6 font-manrope overflow-hidden">
       {/* Background Decorative Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/10 blur-[100px] rounded-full" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-500/10 blur-[100px] rounded-full" />
@@ -127,6 +122,6 @@ export default function IntroPage() {
           />
         ))}
       </div>
-    </main>
+    </div>
   );
 }
