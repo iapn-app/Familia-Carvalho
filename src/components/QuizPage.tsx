@@ -1,10 +1,12 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
 import { GameState, getGameState, updateGameState, resetGameState } from "../lib/storage";
 import { supabase } from "../services/supabaseClient";
 import { REFILL_POLICY } from "../lib/refillPolicy";
+
+const TIMER_SECONDS = 15;
 
 export default function QuizPage() {
   const navigate = useNavigate();
@@ -15,6 +17,12 @@ export default function QuizPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showStreakBoost, setShowStreakBoost] = useState(false);
+  
+  // Timer State
+  const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
+  const [isTimeOut, setIsTimeOut] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
     const fetchQuestions = async () => {
@@ -83,6 +91,85 @@ export default function QuizPage() {
     }
   }, [navigate]);
 
+  // Timer Logic
+  useEffect(() => {
+    if (loading || questions.length === 0 || selectedOption !== null || isTimeOut) return;
+
+    setTimeLeft(TIMER_SECONDS);
+    setIsTimeOut(false);
+    startTimeRef.current = Date.now();
+
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    timerRef.current = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      const remaining = Math.max(0, TIMER_SECONDS - elapsed);
+      
+      setTimeLeft(remaining);
+
+      if (remaining <= 0) {
+        handleTimeout();
+      }
+    }, 100);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [state.currentQuestionIndex, loading, questions.length]);
+
+  const handleTimeout = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setIsTimeOut(true);
+    setFeedback("wrong");
+    
+    const currentQuestion = questions[state.currentQuestionIndex];
+    if (!currentQuestion) return;
+
+    // Update state (lose life)
+    const newLives = state.lives - 1;
+    const newState = updateGameState({
+      lives: newLives,
+      streak: 0,
+      wrongAnswers: state.wrongAnswers + 1,
+      seenQuestionIds: [...(state.seenQuestionIds || []), currentQuestion.id]
+    });
+    setState(newState);
+
+    setTimeout(() => {
+      advanceQuestion(newLives);
+    }, 900);
+  };
+
+  const advanceQuestion = (currentLives: number) => {
+    if (currentLives <= 0 || state.currentQuestionIndex >= questions.length - 1) {
+      updateGameState({ isGameOver: true });
+      navigate("/resultado");
+    } else {
+      const nextState = updateGameState({
+        currentQuestionIndex: state.currentQuestionIndex + 1,
+      });
+      setState(nextState);
+      setSelectedOption(null);
+      setFeedback(null);
+      setIsTimeOut(false);
+    }
+  };
+
+  const handleSkip = () => {
+    if (state.skips_left <= 0 || selectedOption !== null || isTimeOut) return;
+    
+    if (timerRef.current) clearInterval(timerRef.current);
+    
+    const currentQuestion = questions[state.currentQuestionIndex];
+    const newState = updateGameState({
+      skips_left: state.skips_left - 1,
+      seenQuestionIds: [...(state.seenQuestionIds || []), currentQuestion.id]
+    });
+    setState(newState);
+    
+    advanceQuestion(state.lives);
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-[#0B1F4B] text-white p-6 flex flex-col items-center justify-center font-manrope">
@@ -142,7 +229,10 @@ export default function QuizPage() {
   }
 
   const handleOptionClick = (option: string) => {
-    if (selectedOption !== null) return;
+    if (selectedOption !== null || isTimeOut) return;
+    
+    if (timerRef.current) clearInterval(timerRef.current);
+    
     setSelectedOption(option);
 
     const isCorrect = option === currentQuestion.correct_answer;
@@ -196,20 +286,10 @@ export default function QuizPage() {
     });
     setState(newState);
 
-    // Auto-advance after 0.8s
+    // Auto-advance after 0.9s
     setTimeout(() => {
-      if (newLives <= 0 || state.currentQuestionIndex >= questions.length - 1) {
-        updateGameState({ isGameOver: true });
-        navigate("/resultado");
-      } else {
-        const nextState = updateGameState({
-          currentQuestionIndex: state.currentQuestionIndex + 1,
-        });
-        setState(nextState);
-        setSelectedOption(null);
-        setFeedback(null);
-      }
-    }, 800);
+      advanceQuestion(newLives);
+    }, 900);
   };
 
   return (
@@ -226,19 +306,42 @@ export default function QuizPage() {
             <span className="font-extrabold">{state.coins}</span>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 bg-orange-500/20 px-4 py-1.5 rounded-full border border-orange-500/30">
-          <span className="text-orange-400">🔥</span>
-          <span className="font-extrabold text-orange-400">{state.streak}</span>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSkip}
+            disabled={state.skips_left <= 0 || selectedOption !== null || isTimeOut}
+            className={`px-4 py-1.5 rounded-full font-extrabold text-sm transition-all border ${
+              state.skips_left > 0 
+                ? "bg-blue-500/20 border-blue-500/30 text-blue-400 hover:bg-blue-500/30" 
+                : "bg-white/5 border-white/5 text-white/30 cursor-not-allowed"
+            }`}
+          >
+            {state.skips_left > 0 ? `Pular (${state.skips_left})` : "Sem pulos"}
+          </button>
+          
+          <div className="flex items-center gap-1.5 bg-orange-500/20 px-4 py-1.5 rounded-full border border-orange-500/30">
+            <span className="text-orange-400">🔥</span>
+            <span className="font-extrabold text-orange-400">{state.streak}</span>
+          </div>
         </div>
       </header>
 
-      {/* Progress */}
-      <div className="w-full h-2.5 bg-white/10 rounded-full mb-10 overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${((state.currentQuestionIndex + 1) / questions.length) * 100}%` }}
-          className="h-full bg-gradient-to-r from-amber-400 to-yellow-300"
-        />
+      {/* Progress & Timer */}
+      <div className="flex flex-col gap-2 mb-10">
+        <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${((state.currentQuestionIndex + 1) / questions.length) * 100}%` }}
+            className="h-full bg-gradient-to-r from-amber-400 to-yellow-300"
+          />
+        </div>
+        <div className="flex justify-between items-center px-1">
+          <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Progresso</span>
+          <div className={`flex items-center gap-1.5 ${timeLeft <= 5 ? "text-red-400 animate-pulse" : "text-amber-400"}`}>
+            <span className="text-xs font-black">⏱️ {timeLeft}s</span>
+          </div>
+        </div>
       </div>
 
       {/* Question Card */}
@@ -256,6 +359,18 @@ export default function QuizPage() {
           <p className="text-xl md:text-2xl text-center leading-relaxed font-bold">
             {currentQuestion.question}
           </p>
+          
+          {isTimeOut && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 text-center"
+            >
+              <span className="bg-red-500/20 text-red-400 px-4 py-2 rounded-full font-black text-sm border border-red-500/30">
+                ⏰ Tempo esgotado
+              </span>
+            </motion.div>
+          )}
         </motion.div>
 
         {/* Options */}
@@ -265,7 +380,7 @@ export default function QuizPage() {
             const isSelected = option === selectedOption;
             
             let buttonStyle = "bg-white/5 border-white/10 text-white";
-            if (selectedOption !== null) {
+            if (selectedOption !== null || isTimeOut) {
               if (isCorrect) buttonStyle = "bg-green-500 border-green-400 text-white shadow-[0_0_20px_rgba(34,197,94,0.3)]";
               else if (isSelected) buttonStyle = "bg-red-500 border-red-400 text-white";
               else buttonStyle = "bg-white/5 border-white/5 opacity-30";
@@ -276,11 +391,11 @@ export default function QuizPage() {
                 key={index}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleOptionClick(option)}
-                disabled={selectedOption !== null}
+                disabled={selectedOption !== null || isTimeOut}
                 className={`w-full p-5 rounded-2xl border-2 text-left transition-all font-bold text-lg flex items-center justify-between ${buttonStyle}`}
               >
                 <span>{option}</span>
-                {selectedOption !== null && isCorrect && <span>✅</span>}
+                {(selectedOption !== null || isTimeOut) && isCorrect && <span>✅</span>}
                 {selectedOption !== null && isSelected && !isCorrect && <span>❌</span>}
               </motion.button>
             );

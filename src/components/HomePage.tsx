@@ -1,13 +1,73 @@
 "use client";
 
 import { useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { getGameState } from "../lib/storage";
 import MascotBadge from "./MascotBadge";
+import { supabase } from "../services/supabaseClient";
+
+interface DailyVerse {
+  id: number;
+  verse: string;
+  reference: string;
+}
 
 export default function HomePage() {
   const navigate = useNavigate();
   const state = getGameState();
+  const [dailyVerse, setDailyVerse] = useState<DailyVerse | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [loadingVerse, setLoadingVerse] = useState(true);
+
+  useEffect(() => {
+    const fetchDailyVerse = async () => {
+      try {
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        
+        // Specific calculation requested by user
+        const start = new Date(today.getFullYear(), 0, 0);
+        const diff = (today as any) - (start as any);
+        const dayOfYear = Math.floor(diff / 86400000);
+
+        // Check cache using requested key: daily_verse_seen
+        const cached = localStorage.getItem('daily_verse_seen');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.date === todayStr) {
+            setDailyVerse(parsed.verse);
+            setLoadingVerse(false);
+            return;
+          }
+        }
+
+        const { data, error } = await supabase
+          .from("daily_verses")
+          .select("*");
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          // Specific index calculation requested by user
+          const verseIndex = dayOfYear % data.length;
+          const verseOfDay = data[verseIndex];
+          
+          setDailyVerse(verseOfDay);
+          localStorage.setItem('daily_verse_seen', JSON.stringify({
+            date: todayStr,
+            verse: verseOfDay
+          }));
+        }
+      } catch (err) {
+        console.error("Error fetching daily verse:", err);
+      } finally {
+        setLoadingVerse(false);
+      }
+    };
+
+    fetchDailyVerse();
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#0B1F4B] text-white p-6 flex flex-col items-center font-manrope overflow-x-hidden">
@@ -92,16 +152,85 @@ export default function HomePage() {
           </motion.button>
         </div>
 
-        {/* Daily Challenge Placeholder */}
+        {/* Daily Verse Card */}
         <motion.button 
           whileHover={{ backgroundColor: "rgba(255,255,255,0.1)" }}
-          onClick={() => navigate("/versiculo-do-dia")}
-          className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 transition-all font-bold text-sm backdrop-blur-sm flex items-center justify-center gap-3"
+          onClick={() => dailyVerse && setShowModal(true)}
+          className="w-full p-5 rounded-2xl bg-white/5 border border-white/10 transition-all text-left backdrop-blur-sm relative overflow-hidden group"
         >
-          <span className="text-xl">📅</span>
-          Desafio do Dia
+          <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity">
+            <span className="text-2xl">📖</span>
+          </div>
+          
+          <h3 className="text-amber-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2">
+            📖 Mensagem de Deus para você hoje
+          </h3>
+          
+          {loadingVerse ? (
+            <div className="h-10 flex items-center">
+              <div className="w-4 h-4 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin"></div>
+            </div>
+          ) : dailyVerse ? (
+            <div className="space-y-1">
+              <p className="text-sm font-bold line-clamp-2 leading-relaxed text-white/90 italic">
+                "{dailyVerse.verse}"
+              </p>
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">
+                — {dailyVerse.reference}
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-white/40 italic">
+              "Lâmpada para os meus pés é tua palavra e luz, para o meu caminho."
+            </p>
+          )}
         </motion.button>
       </div>
+
+      {/* Verse Modal */}
+      <AnimatePresence>
+        {showModal && dailyVerse && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowModal(false)}
+              className="absolute inset-0 bg-blue-950/80 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white/10 border border-white/20 p-8 rounded-[2.5rem] max-w-sm w-full shadow-2xl backdrop-blur-2xl"
+            >
+              <div className="text-center mb-6">
+                <span className="text-4xl mb-4 block">🕊️</span>
+                <h2 className="text-amber-400 text-xs font-black uppercase tracking-[0.3em]">
+                  Palavra do Dia
+                </h2>
+              </div>
+              
+              <p className="text-xl md:text-2xl font-bold text-center leading-relaxed mb-6 italic text-white/95">
+                "{dailyVerse.verse}"
+              </p>
+              
+              <div className="flex flex-col items-center gap-6">
+                <span className="px-4 py-1.5 bg-amber-400 text-blue-950 rounded-full font-black text-xs uppercase tracking-widest">
+                  {dailyVerse.reference}
+                </span>
+                
+                <button 
+                  onClick={() => setShowModal(false)}
+                  className="w-full py-4 bg-white/10 hover:bg-white/20 rounded-2xl font-black text-sm transition-all border border-white/10"
+                >
+                  Amém
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       
       <footer className="mt-auto py-8 text-xs text-white/30 font-medium tracking-widest uppercase italic">
         Para a glória de Deus

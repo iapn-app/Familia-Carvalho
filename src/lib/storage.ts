@@ -8,6 +8,7 @@ export interface GameState {
   wrongAnswers: number;
   isGameOver: boolean;
   seenQuestionIds: string[];
+  skips_left: number;
 }
 
 const INITIAL_STATE: GameState = {
@@ -20,6 +21,7 @@ const INITIAL_STATE: GameState = {
   wrongAnswers: 0,
   isGameOver: false,
   seenQuestionIds: [],
+  skips_left: 3,
 };
 
 const STORAGE_KEY = "fc_quiz_state";
