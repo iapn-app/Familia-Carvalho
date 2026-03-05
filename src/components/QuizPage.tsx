@@ -17,6 +17,20 @@ export default function QuizPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showStreakBoost, setShowStreakBoost] = useState(false);
+  const [showOutOfLivesModal, setShowOutOfLivesModal] = useState(false);
+  const [hintMessage, setHintMessage] = useState<string | null>(null);
+  const [streakMessage, setStreakMessage] = useState<{ text: string; type: "success" | "break" } | null>(null);
+
+  const BIBLE_HINTS = [
+    "Tudo posso naquele que me fortalece. - Filipenses 4:13",
+    "O Senhor é o meu pastor; de nada terei falta. - Salmos 23:1",
+    "Entrega o teu caminho ao Senhor; confia nele, e ele o fará. - Salmos 37:5",
+    "O choro pode durar uma noite, mas a alegria vem pela manhã. - Salmos 30:5",
+    "Deus é o nosso refúgio e fortaleza, socorro bem presente na angústia. - Salmos 46:1",
+    "O amor é paciente, o amor é bondoso. - 1 Coríntios 13:4",
+    "Buscai primeiro o Reino de Deus, e a sua justiça. - Mateus 6:33"
+  ];
+
   
   // Timer State
   const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS);
@@ -71,7 +85,22 @@ export default function QuizPage() {
           query = query.not("id", "in", `(${seenIds.join(",")})`);
         }
 
-        const { data, error } = await query.limit(5);
+        let { data, error } = await query.limit(5);
+
+        if (!data || data.length === 0) {
+          updateGameState({ seenQuestionIds: [] });
+          const retryQuery = supabase
+            .from("questions")
+            .select("id,book,stage,level,difficulty,question,options,correct_answer,explanation,status")
+            .eq("status", "approved")
+            .eq("book", book)
+            .eq("stage", stage)
+            .eq("level", level)
+            .limit(5);
+          const retry = await retryQuery;
+          data = retry.data;
+          error = retry.error;
+        }
 
         if (error) throw error;
         setQuestions(data || []);
@@ -93,7 +122,7 @@ export default function QuizPage() {
 
   // Timer Logic
   useEffect(() => {
-    if (loading || questions.length === 0 || selectedOption !== null || isTimeOut) return;
+    if (loading || questions.length === 0 || selectedOption !== null || isTimeOut || showOutOfLivesModal) return;
 
     setTimeLeft(TIMER_SECONDS);
     setIsTimeOut(false);
@@ -115,13 +144,18 @@ export default function QuizPage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [state.currentQuestionIndex, loading, questions.length]);
+  }, [state.currentQuestionIndex, loading, questions.length, showOutOfLivesModal]);
 
   const handleTimeout = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     setIsTimeOut(true);
     setFeedback("wrong");
     
+    if (state.streak > 1) {
+      setStreakMessage({ text: "💔 Sequência quebrada", type: "break" });
+      setTimeout(() => setStreakMessage(null), 1000);
+    }
+
     const currentQuestion = questions[state.currentQuestionIndex];
     if (!currentQuestion) return;
 
@@ -147,22 +181,33 @@ export default function QuizPage() {
       const stage = "Criação";
       const level = "basic";
 
-      let query = supabase
-        .from("questions")
-        .select("id,book,stage,level,difficulty,question,options,correct_answer,explanation,status")
-        .eq("status", "approved")
-        .eq("book", book)
-        .eq("stage", stage)
-        .eq("level", level);
+      const fetchWithSeen = async (seenIds: string[]) => {
+        let query = supabase
+          .from("questions")
+          .select("id,book,stage,level,difficulty,question,options,correct_answer,explanation,status")
+          .eq("status", "approved")
+          .eq("book", book)
+          .eq("stage", stage)
+          .eq("level", level);
 
-      const seenIds = currentState.seenQuestionIds || [];
-      if (seenIds.length > 0) {
-        query = query.not("id", "in", `(${seenIds.join(",")})`);
-      }
+        if (seenIds.length > 0) {
+          query = query.not("id", "in", `(${seenIds.join(",")})`);
+        }
 
-      const { data, error } = await query.limit(5);
+        return await query.limit(5);
+      };
+
+      let { data, error } = await fetchWithSeen(currentState.seenQuestionIds || []);
 
       if (error) throw error;
+
+      if (!data || data.length === 0) {
+        updateGameState({ seenQuestionIds: [] });
+        const retry = await fetchWithSeen([]);
+        data = retry.data;
+        if (retry.error) throw retry.error;
+      }
+
       if (data && data.length > 0) {
         setQuestions(prev => {
           const newQuestions = data.filter(d => !prev.some(p => p.id === d.id));
@@ -176,8 +221,7 @@ export default function QuizPage() {
 
   const advanceQuestion = (currentLives: number) => {
     if (currentLives <= 0) {
-      updateGameState({ isGameOver: true });
-      navigate("/resultado");
+      setShowOutOfLivesModal(true);
     } else {
       const nextIndex = state.currentQuestionIndex + 1;
       const nextState = updateGameState({
@@ -192,6 +236,30 @@ export default function QuizPage() {
         fetchMoreQuestions();
       }
     }
+  };
+
+  const recoverLifeAndAdvance = (cost: number) => {
+    const nextIndex = state.currentQuestionIndex + 1;
+    const nextState = updateGameState({
+      lives: 1,
+      coins: state.coins - cost,
+      currentQuestionIndex: nextIndex,
+    });
+    setState(nextState);
+    setSelectedOption(null);
+    setFeedback(null);
+    setIsTimeOut(false);
+    setShowOutOfLivesModal(false);
+    setHintMessage(null);
+    
+    if (nextIndex >= questions.length - 2) {
+      fetchMoreQuestions();
+    }
+  };
+
+  const handleBibleHint = () => {
+    const randomHint = BIBLE_HINTS[Math.floor(Math.random() * BIBLE_HINTS.length)];
+    setHintMessage(randomHint);
   };
 
   const handleSkip = () => {
@@ -255,7 +323,8 @@ export default function QuizPage() {
     if (state.currentQuestionIndex >= questions.length) {
       return (
         <main className="min-h-screen bg-[#0B1F4B] text-white p-6 flex flex-col items-center justify-center font-manrope">
-          <div className="animate-pulse text-amber-400 text-xl font-bold">Finalizando rodada...</div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-400 mb-4"></div>
+          <div className="animate-pulse text-amber-400 text-xl font-bold">Carregando mais perguntas...</div>
         </main>
       );
     }
@@ -302,6 +371,20 @@ export default function QuizPage() {
       newStreak += 1;
       newCorrect += 1;
 
+      if (newStreak === 2) {
+        setStreakMessage({ text: "🔥 Boa!", type: "success" });
+      } else if (newStreak === 5) {
+        setStreakMessage({ text: "🔥🔥 Incrível!", type: "success" });
+      } else if (newStreak === 10) {
+        setStreakMessage({ text: "🔥🔥🔥 Conhecedor das Escrituras!", type: "success" });
+      } else if (newStreak > 1) {
+        setStreakMessage({ text: `🔥 Sequência: ${newStreak}`, type: "success" });
+      }
+      
+      if (newStreak > 1) {
+        setTimeout(() => setStreakMessage(null), 1000);
+      }
+
       // Streak Boost every 5
       if (newStreak > 0 && newStreak % 5 === 0) {
         newCoins += 30;
@@ -309,6 +392,10 @@ export default function QuizPage() {
         setTimeout(() => setShowStreakBoost(false), 2000);
       }
     } else {
+      if (state.streak > 1) {
+        setStreakMessage({ text: "💔 Sequência quebrada", type: "break" });
+        setTimeout(() => setStreakMessage(null), 1000);
+      }
       newLives -= 1;
       newStreak = 0;
       newWrong += 1;
@@ -368,10 +455,7 @@ export default function QuizPage() {
 
       {/* Progress & Timer */}
       <div className="flex flex-col gap-2 mb-10">
-        <div className="flex justify-between items-center px-1">
-          <span className="text-[10px] font-black uppercase tracking-widest text-white/30">
-            Pergunta {state.currentQuestionIndex + 1}
-          </span>
+        <div className="flex justify-end items-center px-1">
           <div className={`flex items-center gap-1.5 ${timeLeft <= 5 ? "text-red-400 animate-pulse" : "text-amber-400"}`}>
             <span className="text-xs font-black">⏱️ {timeLeft}s</span>
           </div>
@@ -387,6 +471,9 @@ export default function QuizPage() {
           className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 shadow-2xl mb-8 relative overflow-hidden"
         >
           <div className="absolute top-0 left-0 w-full h-1 bg-white/5" />
+          <h2 className="text-white/40 text-xs uppercase font-black tracking-[0.2em] mb-4 text-center">
+            Pergunta {state.currentQuestionIndex + 1}
+          </h2>
           <p className="text-xl md:text-2xl text-center leading-relaxed font-bold">
             {currentQuestion.question}
           </p>
@@ -448,6 +535,94 @@ export default function QuizPage() {
               <span className="text-2xl font-black uppercase tracking-tighter">Sequência {state.streak}!</span>
               <span className="text-sm font-bold opacity-80">+30 Moedas</span>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Streak Message Overlay */}
+      <AnimatePresence>
+        {streakMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-24 left-0 right-0 z-40 flex justify-center pointer-events-none"
+          >
+            <div className={`px-6 py-3 rounded-full font-black text-lg shadow-xl border ${
+              streakMessage.type === "success" 
+                ? "bg-orange-500 text-white border-orange-400 shadow-orange-500/30" 
+                : "bg-red-500 text-white border-red-400 shadow-red-500/30"
+            }`}>
+              {streakMessage.text}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Out of Lives Modal */}
+      <AnimatePresence>
+        {showOutOfLivesModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-[#0B1F4B] border border-white/10 rounded-[2.5rem] p-8 w-full max-w-md shadow-2xl text-center"
+            >
+              <div className="text-6xl mb-4">💔</div>
+              <h2 className="text-2xl font-black text-white mb-6 uppercase tracking-widest">
+                Suas vidas acabaram
+              </h2>
+
+              {hintMessage ? (
+                <div className="space-y-6">
+                  <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
+                    <p className="text-lg font-bold text-amber-400 italic">"{hintMessage}"</p>
+                  </div>
+                  <button
+                    onClick={() => recoverLifeAndAdvance(0)}
+                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-300 text-blue-950 font-black text-lg shadow-lg"
+                  >
+                    Continuar (+1 Vida)
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <button
+                    onClick={() => recoverLifeAndAdvance(50)}
+                    disabled={state.coins < 50}
+                    className={`w-full py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all ${
+                      state.coins >= 50 
+                        ? "bg-amber-400 text-blue-950 hover:bg-amber-300" 
+                        : "bg-white/5 text-white/30 cursor-not-allowed border border-white/5"
+                    }`}
+                  >
+                    <span>🪙</span> Usar 50 moedas para recuperar +1 vida
+                  </button>
+
+                  <button
+                    onClick={handleBibleHint}
+                    className="w-full py-4 rounded-2xl bg-blue-500 text-white font-black text-lg hover:bg-blue-400 transition-all flex items-center justify-center gap-2"
+                  >
+                    <span>📖</span> Receba uma dica bíblica e ganhe +1 vida
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      updateGameState({ isGameOver: true });
+                      navigate("/resultado");
+                    }}
+                    className="w-full py-4 rounded-2xl bg-red-500/20 text-red-400 font-bold text-lg hover:bg-red-500/30 transition-all border border-red-500/30 mt-4"
+                  >
+                    Finalizar rodada
+                  </button>
+                </div>
+              )}
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
